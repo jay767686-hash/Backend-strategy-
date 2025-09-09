@@ -1,0 +1,50 @@
+from datetime import datetime
+from angel_api import AngelOneAPI   # मान लो ये तुम्हारी custom API wrapper है
+
+def generate_signals(market, expiry):
+    """
+    1. Angel One SmartAPI से current option chain fetch करो
+    2. OI % calculate करके decide करो Strong / Medium / Weak
+    3. EMA 9,15 का chart pattern check करो
+    4. GAP UP / GAP DOWN logic apply करो
+    5. Return list of signals with entry, exit, strength, timestamp
+    """
+    api = AngelOneAPI()  # यहाँ login credentials use करो backend .env से
+
+    # 1. Fetch live option chain
+    option_chain = api.get_option_chain(market, expiry)
+
+    signals = []
+
+    for option in option_chain:
+        # 2. OI % logic
+        call_oi = option["call_oi"]
+        put_oi = option["put_oi"]
+        oi_diff = call_oi - put_oi
+
+        # 3. EMA + candlestick pattern logic
+        pattern_signal = check_ema_pattern(option["prices"])  # implement your logic
+
+        # 4. GAP logic
+        gap_ok = check_gap(option["last_close"], option["current_price"])  # implement
+
+        # 5. Decide strength
+        if oi_diff < 10 and pattern_signal and gap_ok:
+            strength = "Strong"
+        elif oi_diff < 20 and pattern_signal:
+            strength = "Medium"
+        else:
+            strength = "Weak"
+
+        # 6. Only signal if entry conditions met
+        if strength in ["Strong", "Medium"]:
+            signals.append({
+                "symbol": option["symbol"],
+                "type": option["type"],  # CE/PE
+                "entry": option["current_price"],
+                "exit": option["target_price"],
+                "strength": strength,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+
+    return signals
