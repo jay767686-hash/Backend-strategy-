@@ -1,0 +1,35 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from strategy import generate_signals
+from datetime import datetime
+import os
+
+app = FastAPI()
+
+# Allow frontend requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+@app.get("/signals")
+async def get_signals(market: str = "NIFTY", expiry: str = None):
+    """
+    Fetch live signals using your strategy
+    """
+    signals = generate_signals(market, expiry)
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    available_expiries = ["12-Sep-2025", "19-Sep-2025"]  # dynamically fetch in real code
+    return {
+        "market": market,
+        "expiry": expiry or available_expiries[0],
+        "available_expiries": available_expiries,
+        "timestamp": timestamp,
+        "signals": signals
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
